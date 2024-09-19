@@ -1,0 +1,11 @@
+codigo,nombre,descripcion,tipo
+MB001,Mesa Redonda,Mesa de madera para reuniones de hasta 6 personas,Menaje
+MB002,Silla Ergonómica,Silla ajustable con soporte lumbar,Menaje
+MB003,Proyector LED,Proyector LED con resolución 1080p,Electrónico
+MB004,Pizarra Blanca,Pizarra blanca con soporte y borrador,Menaje
+MB005,Cable HDMI,Cable HDMI de 5 metros,Consumible
+MB006,Altavoz Bluetooth,Altavoz portátil con conexión Bluetooth,Electrónico
+MB007,Taza Cerámica,Taza de cerámica para café o té,Menaje
+MB008,Extensión Eléctrica,Extensión con 6 salidas,Consumible
+MB009,Micrófono Inalámbrico,Micrófono con receptor inalámbrico,Electrónico
+MB010,Reloj de Pared,Reloj de pared silencioso,Menaje

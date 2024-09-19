@@ -1,6 +1,6 @@
 module Main where
 
-import Auxiliares (getUsers, User(..))
+import Auxiliares (User(..), getUsers, Mobiliario(..), getMobiliarios)
 import qualified Data.Vector as V
 import Data.Maybe (isJust)
 import System.IO (putStrLn)
@@ -9,6 +9,9 @@ import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 
 -- Referencia mutable para almacenar el usuario actual
 type UsuarioActual = IORef (Maybe User)
+
+-- Referencia mutable para almacenar el mobiliario cargado
+type MobiliariosCargados = IORef (V.Vector Mobiliario)
 
 {- 
 /*****Nombre****************************************
@@ -40,6 +43,52 @@ validarIdUsuario usuarios usuarioRef = do
                 Nothing -> do
                     putStrLn "\nID no encontrado. Intente de nuevo."
                     validarIdUsuario usuarios usuarioRef
+
+{- 
+/*****Nombre****************************************
+ * agregarMobiliarios
+ *****Descripción***********************************
+ * Concatenar los nuevos mobiliarios a los existentes, evitando agregar 
+ * mobiliarios con códigos duplicados. Si un mobiliario tiene un código 
+ * que ya existe, no se carga y se muestra un mensaje de advertencia.
+ *****Parámetros************************************
+ * @mobiliariosRef: Referencia mutable de los mobiliarios cargados hasta el momento.
+ * @nuevosMobiliarios: Vector con los nuevos mobiliarios que se desean agregar.
+ *****Retorno***************************************
+ * @IO (): Actualiza la referencia mutable con los mobiliarios válidos (no duplicados),
+ * y muestra mensajes de advertencia si se encuentran duplicados.
+ ***************************************************/
+-}
+agregarMobiliarios :: MobiliariosCargados -> V.Vector Mobiliario -> IO ()
+agregarMobiliarios mobiliariosRef nuevosMobiliarios = do
+    mobiliariosExistentes <- readIORef mobiliariosRef
+    let (mobiliariosValidos, duplicados) = V.partition (\nuevo -> not (esCodigoDuplicado nuevo mobiliariosExistentes)) nuevosMobiliarios
+    
+    -- Mostrar advertencias por los códigos duplicados
+    forM_ duplicados $ \mobiliario -> 
+        putStrLn $ "No se cargó el mobiliario con codigo " ++ codigo mobiliario ++ " porque ya existe en los registros"
+    
+    -- Concatenar los nuevos mobiliarios válidos a los existentes
+    let mobiliariosActualizados = mobiliariosExistentes V.++ mobiliariosValidos
+    writeIORef mobiliariosRef mobiliariosActualizados
+
+{- 
+/*****Nombre****************************************
+ * esCodigoDuplicado
+ *****Descripción***********************************
+ * Verifica si un mobiliario tiene un código duplicado en un vector 
+ * de mobiliarios ya existentes.
+ *****Parámetros************************************
+ * @nuevoMobiliario: Mobiliario que se desea comprobar.
+ * @mobiliariosExistentes: Vector con los mobiliarios ya cargados.
+ *****Retorno***************************************
+ * @Bool: Retorna `True` si el código del mobiliario ya existe en los 
+ * registros, de lo contrario, retorna `False`.
+ ***************************************************/
+-}
+esCodigoDuplicado :: Mobiliario -> V.Vector Mobiliario -> Bool
+esCodigoDuplicado nuevoMobiliario mobiliariosExistentes =
+    V.any (\mobiliario -> codigo mobiliario == codigo nuevoMobiliario) mobiliariosExistentes
 
 {-
 /*****Nombre****************************************
@@ -81,30 +130,48 @@ mostrarSubmenuOO = do
  * lee opciones, y gestiona la lógica de repetición o salida del programa.
  ***************************************************/
 -}
-mainOO :: IO()
-mainOO = do
+mainOO :: MobiliariosCargados -> IO ()
+mainOO mobiliariosRef = do
     mostrarSubmenuOO
     opcion <- getLine
     let opcionInt = read opcion :: Int
     case opcionInt of
         1 -> do
-            putStrLn "Has seleccionado 1"
-            mainOO
+            putStrLn "\nIngrese la ruta del archivo de mobiliario: "
+            filePath <- getLine
+            result <- getMobiliarios filePath
+            case result of
+                Left err -> do
+                    putStrLn $ "Error: " ++ err
+                    mainOO mobiliariosRef
+                Right nuevosMobiliarios -> do
+                    -- Agregar los nuevos mobiliarios a los existentes
+                    agregarMobiliarios mobiliariosRef nuevosMobiliarios
+                    -- Mostrar los mobiliarios actualizados
+                    mobiliariosActualizados <- readIORef mobiliariosRef
+                    putStrLn "\nMobiliario cargado exitosamente:"
+                    forM_ mobiliariosActualizados $ \mobiliario -> do
+                        putStrLn $ "Código: " ++ codigo mobiliario
+                        putStrLn $ "Nombre: " ++ nombre mobiliario
+                        putStrLn $ "Descripción: " ++ descripcion mobiliario
+                        putStrLn $ "Tipo: " ++ tipo mobiliario
+                        putStrLn ""
+                    mainOO mobiliariosRef
         2 -> do
             putStrLn "Has seleccionado 2"
-            mainOO
-        3 -> do 
+            mainOO mobiliariosRef
+        3 -> do
             putStrLn "Has seleccionado 3"
-            mainOO
+            mainOO mobiliariosRef
         4 -> do
             putStrLn "Has seleccionado 4"
-            mainOO
-        5 -> do 
+            mainOO mobiliariosRef
+        5 -> do
             putStrLn "\nVolviendo al menú principal"
             main
         _ -> do
-            putStrLn "\nOpcion inválida. Vuelva a intentar."
-            mainOO 
+            putStrLn "\nOpción inválida. Vuelva a intentar."
+            mainOO mobiliariosRef
             
 {-
 /*****Nombre****************************************
@@ -148,6 +215,7 @@ mostrarMenuPrincipal = do
 main :: IO()
 main = do
     usuarioRef <- newIORef Nothing
+    mobiliariosRef <- newIORef V.empty 
     
     mostrarMenuPrincipal
     opcion <- getLine
@@ -168,7 +236,7 @@ main = do
                                 Just usuario -> putStrLn $ "\nBienvenido, " ++ nombreCompleto usuario
                                 Nothing -> putStrLn "\nError: Usuario no encontrado"
                             putStrLn "\nEntrando al submenú de Opciones Operativas"
-                            mainOO 
+                            mainOO mobiliariosRef
         2 -> do 
             putStrLn "Has seleccionado 2"
             main
