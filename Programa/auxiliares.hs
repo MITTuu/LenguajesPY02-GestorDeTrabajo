@@ -3,15 +3,15 @@ module Auxiliares
   , getUsers
   ) where
 
-import Prelude hiding (filter)
+import Control.Applicative ((<*>), (<$>))
+import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import Data.Csv
 import qualified Data.Vector as V
 import System.Directory (doesFileExist)
-import Control.Applicative ((<*>), (<$>))
-import Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as B8
 import Text.Printf (printf)
+import Prelude hiding (filter)
 
 -- Estructura de datos para los usuarios
 data User = User

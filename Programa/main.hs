@@ -1,29 +1,22 @@
 module Main where
   
-import Auxiliares (User(..), getUsers)
-import Operativas (Mobiliario(..), getMobiliarios)
-import qualified Data.Vector as V
-import Data.Maybe (isJust)
-import System.IO (putStrLn)
-import Control.Monad (forM_)
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
-import Prelude hiding (filter)
-import qualified Data.ByteString.Lazy as BL
-import Data.Csv
-import qualified Data.Vector as V
-import System.Directory (doesFileExist)
 import Control.Applicative ((<*>), (<$>))
+import Control.Monad (forM_)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
+import Data.Csv
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import Data.Maybe (isJust)
+import qualified Data.Vector as V
+import System.Directory (doesFileExist)
+import System.IO (putStrLn, writeFile)
 import Text.Printf (printf)
-import System.IO (writeFile)
-
+import Auxiliares (User(..), getUsers)
+import Operativas (Mobiliario(..), Sala(..), MobiliariosCargados, guardarMobiliarioCSV, getMobiliarios, crearSala, mostrarInformacionSala)
 
 -- Referencia mutable para almacenar el usuario actual
 type UsuarioActual = IORef (Maybe User)
-
--- Referencia mutable para almacenar el mobiliario cargado
-type MobiliariosCargados = IORef (V.Vector Mobiliario)
 
 {- 
 /*****Nombre****************************************
@@ -142,8 +135,8 @@ mostrarSubmenuOO = do
  * lee opciones, y gestiona la lógica de repetición o salida del programa.
  ***************************************************/
 -}
-mainOO :: MobiliariosCargados -> IO ()
-mainOO mobiliariosRef = do
+mainOO :: MobiliariosCargados -> IORef (V.Vector Sala) -> IO ()
+mainOO mobiliariosRef salasRef = do
     mostrarSubmenuOO
     opcion <- getLine
     let opcionInt = read opcion :: Int
@@ -155,7 +148,7 @@ mainOO mobiliariosRef = do
             case result of
                 Left err -> do
                     putStrLn $ "Error: " ++ err
-                    mainOO mobiliariosRef
+                    mainOO mobiliariosRef salasRef
                 Right nuevosMobiliarios -> do
                     -- Agregar los nuevos mobiliarios a los existentes
                     agregarMobiliarios mobiliariosRef nuevosMobiliarios
@@ -168,22 +161,26 @@ mainOO mobiliariosRef = do
                         putStrLn $ "Descripción: " ++ descripcion mobiliario
                         putStrLn $ "Tipo: " ++ tipo mobiliario
                         putStrLn ""
-                    mainOO mobiliariosRef
+                    mainOO mobiliariosRef salasRef
         2 -> do
-            putStrLn "Has seleccionado 2"
-            mainOO mobiliariosRef
+            codigo <- crearSala mobiliariosRef salasRef
+            putStrLn $ "\nSala creada con el código: " ++ codigo
+
+            mainOO mobiliariosRef salasRef
         3 -> do
-            putStrLn "Has seleccionado 3"
-            mainOO mobiliariosRef
+            putStrLn "\nIngrese el código de la sala o ingresa 'Todo' para ver todas las salas: "
+            codigoSala <- getLine
+            mostrarInformacionSala mobiliariosRef salasRef codigoSala
+            mainOO mobiliariosRef salasRef
         4 -> do
             putStrLn "Has seleccionado 4"
-            mainOO mobiliariosRef
+            mainOO mobiliariosRef salasRef
         5 -> do      
             putStrLn "\nVolviendo al menú principal..."
-            mainLoop mobiliariosRef
+            mainLoop mobiliariosRef salasRef
         _ -> do
             putStrLn "\nOpción inválida. Vuelva a intentar."
-            mainOO mobiliariosRef
+            mainOO mobiliariosRef salasRef
             
 {-
 /*****Nombre****************************************
@@ -227,10 +224,8 @@ mostrarMenuPrincipal = do
 main :: IO ()
 main = do
     mobiliariosRef <- newIORef V.empty 
-    mainLoop mobiliariosRef
-
-mainLoop :: IORef (V.Vector Mobiliario) -> IO ()
-mainLoop mobiliariosRef = do 
+    salasRef <- newIORef V.empty 
+    
     -- Intentar cargar los mobiliarios desde el archivo
     result <- getMobiliarios "Archivos del sistema/mobiliario.csv"
     case result of
@@ -253,6 +248,11 @@ mainLoop mobiliariosRef = do
                         putStrLn $ "Tipo: " ++ tipo mobiliario
                         putStrLn ""
     
+    mainLoop mobiliariosRef salasRef
+
+mainLoop :: IORef (V.Vector Mobiliario) -> IORef (V.Vector Sala) -> IO ()
+mainLoop mobiliariosRef salasRef = do
+    
     usuarioRef <- newIORef Nothing
 
     mostrarMenuPrincipal
@@ -266,71 +266,20 @@ mainLoop mobiliariosRef = do
                 Right usuarios -> do
                     idValido <- validarIdUsuario usuarios usuarioRef
                     case idValido of
-                        Nothing -> mainLoop mobiliariosRef 
+                        Nothing -> mainLoop mobiliariosRef salasRef
                         Just _ -> do
                             usuarioActual <- readIORef usuarioRef
                             case usuarioActual of
                                 Just usuario -> putStrLn $ "\nBienvenido, " ++ nombreCompleto usuario
                                 Nothing -> putStrLn "\nError: Usuario no encontrado"
                             putStrLn "\nEntrando al submenú de Opciones Operativas"
-                            mainOO mobiliariosRef
+                            mainOO mobiliariosRef salasRef
         2 -> do 
             putStrLn "Has seleccionado 2"
-            mainLoop mobiliariosRef
+            mainOO mobiliariosRef salasRef
         3 -> do
             putStrLn "\nSaliendo del programa..."
             guardarMobiliarioCSV "Archivos del sistema/mobiliario.csv" mobiliariosRef
         _ -> do
             putStrLn "\nOpción inválida. Vuelva a intentar."
-            mainLoop mobiliariosRef
-
-            
-{- Inicio: Persistencia de datos -----------------------------------------------------------------------------------------}        
-
-{- Inicio: Persistencia de datos para el mobiliario cargado -------------------------------------------------------------}
-
--- Instancia para convertir un mobiliario a un registro CSV
-instance ToNamedRecord Mobiliario where
-  toNamedRecord mobiliario = namedRecord
-    [ B8.pack "codigo" .= codigo mobiliario
-    , B8.pack "nombre" .= nombre mobiliario
-    , B8.pack "descripcion" .= descripcion mobiliario
-    , B8.pack "tipo" .= tipo mobiliario
-    ]
-
--- Instancia para definir el orden de las columnas del CSV
-instance DefaultOrdered Mobiliario where
-  headerOrder _ = header
-    [ B8.pack "codigo"
-    , B8.pack "nombre"
-    , B8.pack "descripcion"
-    , B8.pack "tipo"
-    ]
-
-{- 
-/*****Nombre****************************************
- * guardarMobiliariosCSV
- *****Descripción***********************************
- * Toma el estado actual de `MobiliariosCargados`, lo convierte 
- * a formato CSV y lo guarda en el archivo especificado.
- *****Parámetros************************************
- * @filePath: Ruta del archivo CSV donde se guardará la información.
- * @mobiliariosRef: Referencia mutable que contiene el vector de mobiliarios.
- *****Retorno***************************************
- * @IO (): Realiza la acción de guardar el archivo CSV.
- ***************************************************/
--}
-guardarMobiliarioCSV :: FilePath -> MobiliariosCargados -> IO()
-guardarMobiliarioCSV filePath mobiliariosRef = do
-    mobiliarios <- readIORef mobiliariosRef
-    
-    -- Codificar los datos como CSV
-    let csvData = encodeByName (headerOrder (undefined :: Mobiliario)) (V.toList mobiliarios)
-    
-    -- Escribir el CSV en el archivo
-    BL.writeFile filePath csvData
-
-    
-{- Fin: Persistencia de datos para el mobiliario cargado -----------------------------------------------------------------}
-
-{- Fin: Persistencia de datos --------------------------------------------------------------------------------------------}
+            mainLoop mobiliariosRef salasRef
