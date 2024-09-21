@@ -1,19 +1,24 @@
 module Operativas 
   ( Mobiliario(..)
   , Sala(..)
-  , MobiliariosCargados  
+  , MobiliariosCargados
+  , SalasCreadas
   , getMobiliarios
   , guardarMobiliarioCSV
   , crearSala
   , mostrarInformacionSala
+  , guardarSalasComoJSON
+  , cargarSalasDesdeJSON
   ) where
 
+{-# LANGUAGE OverloadedStrings #-}
 import Control.Applicative ((<*>), (<$>))
+import Control.Exception (catch, IOException)
 import Control.Monad (forM_, replicateM)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
-import Data.Csv
+import Data.Csv as Csv
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.List (filter)
 import qualified Data.Set as S
@@ -24,6 +29,9 @@ import System.Random (randomRIO)
 import Text.Printf (printf)
 import Text.Read (readMaybe)
 import Prelude hiding (filter)
+import Data.Aeson as Aeson
+import GHC.Generics (Generic)
+import Data.ByteString.Lazy (ByteString, readFile)
 
 -- Estructura de datos para los mobiliarios de sala
 data Mobiliario = Mobiliario
@@ -42,7 +50,7 @@ data Sala = Sala
   , ubicacion :: String
   , capacidad :: Int
   , mobiliarioSeleccionado :: [String]
-  } deriving (Show, Eq)
+  } deriving (Show, Generic)
 
 -- Alias para el mobiliario cargado
 type MobiliariosCargados = IORef (V.Vector Mobiliario)
@@ -70,10 +78,10 @@ type ErrorMsg = String
 -}
 instance FromNamedRecord Mobiliario where
   parseNamedRecord record = Mobiliario
-    <$> record .: B8.pack "codigo"
-    <*> record .: B8.pack "nombre"
-    <*> record .: B8.pack "descripcion"
-    <*> record .: B8.pack "tipo"
+    <$> record Csv..: B8.pack "codigo"
+    <*> record Csv..: B8.pack "nombre"
+    <*> record Csv..: B8.pack "descripcion"
+    <*> record Csv..: B8.pack "tipo"
 
 type CsvDataMobiliario = (Header, V.Vector Mobiliario)
 
@@ -97,7 +105,7 @@ parseCsvMobiliario filePath = do
   if fileExists
     then do
       csvDataMobiliario <- BL.readFile filePath
-      return $ decodeByName csvDataMobiliario
+      return $ Csv.decodeByName csvDataMobiliario
     else return . Left $ printf "The file %s does not exist" filePath
 
 {- 
@@ -128,10 +136,10 @@ getMobiliarios filePath = do
 -- Instancia para convertir un mobiliario a un registro CSV
 instance ToNamedRecord Mobiliario where
   toNamedRecord mobiliario = namedRecord
-    [ B8.pack "codigo" .= codigo mobiliario
-    , B8.pack "nombre" .= nombre mobiliario
-    , B8.pack "descripcion" .= descripcion mobiliario
-    , B8.pack "tipo" .= tipo mobiliario
+    [ B8.pack "codigo" Csv..= codigo mobiliario
+    , B8.pack "nombre" Csv..= nombre mobiliario
+    , B8.pack "descripcion" Csv..= descripcion mobiliario
+    , B8.pack "tipo" Csv..= tipo mobiliario
     ]
 
 -- Instancia para definir el orden de las columnas del CSV
@@ -161,12 +169,12 @@ guardarMobiliarioCSV filePath mobiliariosRef = do
     mobiliarios <- readIORef mobiliariosRef
     
     -- Codificar los datos como CSV
-    let csvData = encodeByName (headerOrder (undefined :: Mobiliario)) (V.toList mobiliarios)
+    let csvData = Csv.encodeByName (headerOrder (undefined :: Mobiliario)) (V.toList mobiliarios)
     
     -- Escribir el CSV en el archivo
-    BL.writeFile filePath csvData
+    catch (BL.writeFile filePath csvData >> putStrLn "Mobiliarios guardados exitosamente en el archivo CSV.")
+          manejarError
 
-    
 {- Fin: Persistencia de datos para el mobiliario cargado -----------------------------------------------------------------}
 
 {- Inicio: Crear y mostrar salas de reuniones -----------------------------------------------------------------------------}
@@ -452,3 +460,65 @@ mostrarInformacionMobiliario mobiliariosRef codigoBuscado = do
             "Tipo: " ++ tipo mobiliario ++ "\n"
 
 {- Fin: Crear y mostrar salas de reuniones -------------------------------------------------------------------------------}
+
+{- Inicio: Persistencia de datos para las salas creadas ------------------------------------------------------------------}
+
+-- Instancia JSON para salas   
+instance ToJSON Sala
+instance FromJSON Sala
+
+{- 
+/*****Nombre****************************************
+ * guardarSalasComoJSON
+ *****Descripción***********************************
+ * Guarda la información de las salas en un archivo JSON.
+ * Convierte el contenido de las salas almacenadas en el IORef a
+ * formato JSON y lo guarda en la ubicación especificada.
+ *****Parámetros************************************
+ @ filePath: Ruta para guardar el contenido
+ * @salasRef: Referencia mutable que contiene el vector de salas creadas.
+ *****Retorno***************************************
+ * @IO (): Guarda las salas en el archivo "Archivos del sistema/salas.json".
+ ***************************************************/
+-}
+guardarSalasComoJSON :: FilePath -> SalasCreadas -> IO ()
+guardarSalasComoJSON filePath salasRef = do
+    salas <- readIORef salasRef
+    let jsonData = Aeson.encode (V.toList salas)
+    
+    catch (BL.writeFile filePath jsonData >> putStrLn "Salas guardadas exitosamente.")
+          manejarError
+
+{- 
+/*****Nombre****************************************
+ * cargarSalasDesdeJSON
+ *****Descripción***********************************
+ * Carga la información de las salas desde un archivo JSON.
+ * Lee el contenido del archivo especificado y convierte
+ * los datos a un vector de salas, que se almacena en
+ * la referencia mutable proporcionada.
+ *****Parámetros************************************
+ * @filePath: Ruta del archivo JSON desde donde se cargan las salas.
+ * @salasRef: Referencia mutable que contiene el vector de salas creadas.
+ *****Retorno***************************************
+ * @IO (): Carga las salas desde el archivo "Archivos del sistema/salas.json".
+ ***************************************************/
+-}
+cargarSalasDesdeJSON :: FilePath -> SalasCreadas -> IO ()
+cargarSalasDesdeJSON filePath salasRef = 
+    catch (do
+        jsonData <- BL.readFile filePath
+        if BL.null jsonData
+            then putStrLn "\nNo se encontraron datos de salas en el archivo del sistema."
+            else case Aeson.decode jsonData of
+                Just salas -> do  
+                    writeIORef salasRef salas
+ 
+                Nothing -> putStrLn "\nError: No se pudo decodificar el JSON."
+    ) manejarError
+
+{- Fin: Persistencia de datos para las salas creadas ---------------------------------------------------------------------}
+
+-- Función auxiliar para manejar errores de IO
+manejarError :: IOException -> IO ()
+manejarError e = putStrLn $ "\nOcurrió un error al guardar los datos: " ++ show e

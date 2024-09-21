@@ -13,7 +13,20 @@ import System.Directory (doesFileExist)
 import System.IO (putStrLn, writeFile)
 import Text.Printf (printf)
 import Auxiliares (User(..), getUsers)
-import Operativas (Mobiliario(..), Sala(..), MobiliariosCargados, guardarMobiliarioCSV, getMobiliarios, crearSala, mostrarInformacionSala)
+import Operativas 
+    ( Mobiliario(..)
+    , Sala(..)
+    , MobiliariosCargados
+    , SalasCreadas
+    )
+import Operativas 
+    ( getMobiliarios
+    , guardarMobiliarioCSV
+    , crearSala
+    , mostrarInformacionSala
+    , guardarSalasComoJSON
+    , cargarSalasDesdeJSON
+    )
 
 -- Referencia mutable para almacenar el usuario actual
 type UsuarioActual = IORef (Maybe User)
@@ -233,11 +246,11 @@ main = do
             putStrLn $ "Error al cargar mobiliarios: " ++ err
         Right nuevosMobiliarios -> do
             if V.null nuevosMobiliarios
-                then putStrLn "No se encontraron datos de mobiliarios en el archivo del sistema."
+                then putStrLn "\nNo se encontraron mobiliarios registrados en el archivo CSV del sistema."
                 else do
                     -- Agregar los nuevos mobiliarios a los existentes
                     agregarMobiliarios mobiliariosRef nuevosMobiliarios
-                    putStrLn "Datos cargados correctamente."
+
                     -- Mostrar los mobiliarios actualizados
                     mobiliariosActualizados <- readIORef mobiliariosRef
                     putStrLn "\nMobiliario en registro:\n"
@@ -247,7 +260,26 @@ main = do
                         putStrLn $ "Descripción: " ++ descripcion mobiliario
                         putStrLn $ "Tipo: " ++ tipo mobiliario
                         putStrLn ""
-    
+
+    -- Cargar las salas desde el archivo JSON
+    cargarSalasDesdeJSON "Archivos del sistema/salas.json" salasRef
+
+    -- Mostrar las salas cargadas
+    salasCreadas <- readIORef salasRef
+    if V.null salasCreadas
+        then putStrLn "No se encontraron salas registradas en el archivo JSON del sistema."
+        else do
+            putStrLn "\nSalas en registro:\n"
+            forM_ salasCreadas $ \sala -> do
+                putStrLn $ "Código de sala: " ++ codigoSala sala
+                putStrLn $ "Nombre de sala: " ++ nombreSala sala
+                putStrLn $ "Edificio: " ++ edificio sala
+                putStrLn $ "Piso: " ++ show (piso sala)
+                putStrLn $ "Capacidad: " ++ show (capacidad sala)
+                putStrLn $ "Ubicación: " ++ ubicacion sala
+                putStrLn $ "Mobiliario seleccionado: " ++ show (mobiliarioSeleccionado sala)
+                putStrLn ""
+
     mainLoop mobiliariosRef salasRef
 
 mainLoop :: IORef (V.Vector Mobiliario) -> IORef (V.Vector Sala) -> IO ()
@@ -280,6 +312,7 @@ mainLoop mobiliariosRef salasRef = do
         3 -> do
             putStrLn "\nSaliendo del programa..."
             guardarMobiliarioCSV "Archivos del sistema/mobiliario.csv" mobiliariosRef
+            guardarSalasComoJSON "Archivos del sistema/salas.json" salasRef
         _ -> do
             putStrLn "\nOpción inválida. Vuelva a intentar."
             mainLoop mobiliariosRef salasRef
