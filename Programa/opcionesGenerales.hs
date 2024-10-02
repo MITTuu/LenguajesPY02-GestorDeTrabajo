@@ -104,14 +104,25 @@ consultarReserva codigo = do
             putStrLn $ "Cantidad de personas: " ++ show (cantidadPersonas r)
         Nothing -> putStrLn "Reserva no encontrada."
 
--- Cancelar una reserva por código
+-- Función para cancelar una reserva
 cancelarReserva :: String -> IO ()
 cancelarReserva codigo = do
+    -- Cargar reservas existentes
     maybeReservas <- cargarReservas
     let reservas = maybe [] id maybeReservas
-    let reservasActualizadas = filter (\r -> codigoReserva r /= codigo) reservas
-    guardarReservas reservasActualizadas
-    putStrLn $ "Reserva con código " ++ codigo ++ " cancelada."
+    
+    -- Verificar si la reserva existe
+    let reservaExistente = find (\r -> codigoReserva r == codigo) reservas
+    
+    case reservaExistente of
+        Just _ -> do
+            -- Eliminar la reserva de la lista
+            let reservasActualizadas = filter (\r -> codigoReserva r /= codigo) reservas
+            -- Guardar la lista actualizada en el archivo
+            guardarReservas reservasActualizadas
+            putStrLn $ "Reserva con código " ++ codigo ++ " ha sido cancelada."
+        Nothing -> putStrLn $ "No se encontró ninguna reserva con el código " ++ codigo
+
 
 -- Modificar una reserva
 modificarReserva :: String -> String -> String -> Int -> IO ()
