@@ -1,5 +1,4 @@
 module Main where
-  
 import Control.Applicative ((<*>), (<$>))
 import Control.Monad (forM_)
 import Data.ByteString (ByteString)
@@ -18,34 +17,19 @@ import Operativas
     , Sala(..)
     , MobiliariosCargados
     , SalasCreadas
-    )
-import Operativas 
-    ( getMobiliarios
+    , getMobiliarios
     , guardarMobiliarioCSV
     , crearSala
     , mostrarInformacionSala
     , guardarSalasComoJSON
     , cargarSalasDesdeJSON
     )
+import OpcionesGenerales (crearReserva, consultarReserva, cancelarReserva, modificarReserva, consultarDisponibilidad)
 
 -- Referencia mutable para almacenar el usuario actual
 type UsuarioActual = IORef (Maybe User)
 
-{- 
-/*****Nombre****************************************
- * validarIdUsuario
- *****Descripción***********************************
- * Solicita al usuario un ID y verifica si existe en la lista
- * de usuarios obtenidos del archivo CSV. Repite la solicitud
- * hasta que el ID sea válido. Almacena el usuario en una 
- * referencia global si el ID es válido.
- *****Parámetros************************************
- * @usuarios: Vector de usuarios obtenidos del archivo CSV.
- * @usuarioRef: Referencia mutable para almacenar el usuario.
- *****Retorno***************************************
- * @IO String: El ID del usuario que existe en el CSV.
- ***************************************************/
--}
+-- Validar ID de usuario
 validarIdUsuario :: V.Vector User -> UsuarioActual -> IO (Maybe String)
 validarIdUsuario usuarios usuarioRef = do
     putStrLn "\nIngrese el ID del usuario ('v' para volver al menú principal): "
@@ -62,63 +46,24 @@ validarIdUsuario usuarios usuarioRef = do
                     putStrLn "\nID no encontrado. Intente de nuevo."
                     validarIdUsuario usuarios usuarioRef
 
-{- 
-/*****Nombre****************************************
- * agregarMobiliarios
- *****Descripción***********************************
- * Concatenar los nuevos mobiliarios a los existentes, evitando agregar 
- * mobiliarios con códigos duplicados. Si un mobiliario tiene un código 
- * que ya existe, no se carga y se muestra un mensaje de advertencia.
- *****Parámetros************************************
- * @mobiliariosRef: Referencia mutable de los mobiliarios cargados hasta el momento.
- * @nuevosMobiliarios: Vector con los nuevos mobiliarios que se desean agregar.
- *****Retorno***************************************
- * @IO (): Actualiza la referencia mutable con los mobiliarios válidos (no duplicados),
- * y muestra mensajes de advertencia si se encuentran duplicados.
- ***************************************************/
--}
+-- Agregar mobiliarios
 agregarMobiliarios :: MobiliariosCargados -> V.Vector Mobiliario -> IO ()
 agregarMobiliarios mobiliariosRef nuevosMobiliarios = do
     mobiliariosExistentes <- readIORef mobiliariosRef
     let (mobiliariosValidos, duplicados) = V.partition (\nuevo -> not (esCodigoDuplicado nuevo mobiliariosExistentes)) nuevosMobiliarios
     
-    -- Mostrar advertencias por los códigos duplicados
     forM_ duplicados $ \mobiliario -> 
         putStrLn $ "No se cargó el mobiliario con codigo " ++ codigo mobiliario ++ " porque ya existe en los registros"
     
-    -- Concatenar los nuevos mobiliarios válidos a los existentes
     let mobiliariosActualizados = mobiliariosExistentes V.++ mobiliariosValidos
     writeIORef mobiliariosRef mobiliariosActualizados
 
-{- 
-/*****Nombre****************************************
- * esCodigoDuplicado
- *****Descripción***********************************
- * Verifica si un mobiliario tiene un código duplicado en un vector 
- * de mobiliarios ya existentes.
- *****Parámetros************************************
- * @nuevoMobiliario: Mobiliario que se desea comprobar.
- * @mobiliariosExistentes: Vector con los mobiliarios ya cargados.
- *****Retorno***************************************
- * @Bool: Retorna `True` si el código del mobiliario ya existe en los 
- * registros, de lo contrario, retorna `False`.
- ***************************************************/
--}
+-- Comprobar si el código está duplicado
 esCodigoDuplicado :: Mobiliario -> V.Vector Mobiliario -> Bool
 esCodigoDuplicado nuevoMobiliario mobiliariosExistentes =
     V.any (\mobiliario -> codigo mobiliario == codigo nuevoMobiliario) mobiliariosExistentes
 
-{-
-/*****Nombre****************************************
- * mostrarSubmenuOO
- *****Descripción***********************************
- * Imprime el menú de opciones operativas
- *****Parámetros************************************
- * Ninguno.
- *****Retorno***************************************
- * @IO (): Realiza la acción de imprimir el menú en la consola.
- ***************************************************/
- -}
+-- Mostrar submenú de opciones operativas
 mostrarSubmenuOO :: IO ()
 mostrarSubmenuOO = do
     putStrLn " _____________________________________"
@@ -134,20 +79,7 @@ mostrarSubmenuOO = do
     putStrLn ""
     putStrLn "Seleccione una opción: "
 
-{-
-/*****Nombre****************************************
- * mainOO -> (OO = Opciones Operativas)
- *****Descripción***********************************
- * Función para manejar el menú OO.
- * Muestra el menú al usuario, lee su entrada, procesa la opción 
- * seleccionada y repite el ciclo hasta que el usuario elija salir.
- *****Parámetros************************************
- * Ninguno.
- *****Retorno***************************************
- * @IO (): Controla la interacción con el usuario, imprime el menú, 
- * lee opciones, y gestiona la lógica de repetición o salida del programa.
- ***************************************************/
--}
+-- Manejar el menú de opciones operativas
 mainOO :: MobiliariosCargados -> IORef (V.Vector Sala) -> IO ()
 mainOO mobiliariosRef salasRef = do
     mostrarSubmenuOO
@@ -163,9 +95,7 @@ mainOO mobiliariosRef salasRef = do
                     putStrLn $ "Error: " ++ err
                     mainOO mobiliariosRef salasRef
                 Right nuevosMobiliarios -> do
-                    -- Agregar los nuevos mobiliarios a los existentes
                     agregarMobiliarios mobiliariosRef nuevosMobiliarios
-                    -- Mostrar los mobiliarios actualizados
                     mobiliariosActualizados <- readIORef mobiliariosRef
                     putStrLn "\nMobiliario en registro:\n"
                     forM_ mobiliariosActualizados $ \mobiliario -> do
@@ -178,7 +108,6 @@ mainOO mobiliariosRef salasRef = do
         2 -> do
             codigo <- crearSala mobiliariosRef salasRef
             putStrLn $ "\nSala creada con el código: " ++ codigo
-
             mainOO mobiliariosRef salasRef
         3 -> do
             putStrLn "\nIngrese el código de la sala o ingresa 'Todo' para ver todas las salas: "
@@ -194,19 +123,77 @@ mainOO mobiliariosRef salasRef = do
         _ -> do
             putStrLn "\nOpción inválida. Vuelva a intentar."
             mainOO mobiliariosRef salasRef
+
+-- Mostrar submenú de opciones generales
+mostrarSubmenuOG :: IO ()
+mostrarSubmenuOG = do
+    putStrLn " _____________________________________"
+    putStrLn "|                                     |"
+    putStrLn "|         Opciones Generales          |"
+    putStrLn "|_____________________________________|"
+    putStrLn ""
+    putStrLn "1. Gestion de reserva"
+    putStrLn "2. Consultar Reserva"
+    putStrLn "3. Cancelar Reserva"
+    putStrLn "4. Modificar Reserva"
+    putStrLn "5. Consultar Disponibilidad"
+    putStrLn "6. Volver al Menú Principal"
+    putStrLn ""
+    putStrLn "Seleccione una opción: "
+
+-- Manejar el menú de opciones generales
+mainOG :: IO ()
+mainOG = do
+    mostrarSubmenuOG
+    opcion <- getLine
+    let opcionInt = read opcion :: Int
+    case opcionInt of
+        1 -> do
+            putStrLn "Ingrese el ID de usuario: "
+            idUsuario <- getLine
+            putStrLn "Ingrese el ID de la sala: "
+            idSala <- getLine
+            putStrLn "Ingrese la fecha de la reserva (YYYY-MM-DD): "
+            fecha <- getLine
+            putStrLn "Ingrese la cantidad de personas: "
+            cantidadPersonasStr <- getLine
+            let cantidadPersonas = read cantidadPersonasStr :: Int
+            crearReserva idUsuario idSala fecha cantidadPersonas
+            mainOG
+        2 -> do
+            putStrLn "Ingrese el código de la reserva: "
+            codigoReserva <- getLine
+            consultarReserva codigoReserva
+            mainOG
+        3 -> do
+            putStrLn "Ingrese el código de la reserva a cancelar: "
+            codigoReserva <- getLine
+            cancelarReserva codigoReserva
+            mainOG
+        4 -> do
+            putStrLn "Ingrese el código de la reserva a modificar: "
+            codigoReserva <- getLine
+            putStrLn "Ingrese el nuevo ID de la sala: "
+            nuevaSala <- getLine
+            putStrLn "Ingrese la nueva fecha de la reserva (YYYY-MM-DD): "
+            nuevaFecha <- getLine
+            putStrLn "Ingrese la nueva cantidad de personas: "
+            nuevaCantidadStr <- getLine
+            let nuevaCantidad = read nuevaCantidadStr :: Int
+            modificarReserva codigoReserva nuevaSala nuevaFecha nuevaCantidad
+            mainOG
+        5 -> do
+            putStrLn "Ingrese la fecha para consultar disponibilidad (YYYY-MM-DD): "
+            fechaConsulta <- getLine
+            consultarDisponibilidad fechaConsulta
+            mainOG
+        6 -> putStrLn "Volviendo al Menú Principal..."
+        _ -> do
+            putStrLn "Opción no válida. Intente de nuevo."
+            mainOG
+
             
-{-
-/*****Nombre****************************************
- * mostrarMenuPrincipal
- *****Descripción***********************************
- * Imprime el menú principal de la aplicación con opciones
- * para que el usuario seleccione una acción.
- *****Parámetros************************************
- * Ninguno.
- *****Retorno***************************************
- * @IO (): Realiza la acción de imprimir el menú en la consola.
- ***************************************************/
- -}
+-- Mostrar menú principal
 mostrarMenuPrincipal :: IO ()
 mostrarMenuPrincipal = do
     putStrLn " _____________________________________"
@@ -220,99 +207,71 @@ mostrarMenuPrincipal = do
     putStrLn ""
     putStrLn "Seleccione una opción: "
 
-{-
-/*****Nombre****************************************
- * main
- *****Descripción***********************************
- * Función principal del programa que ejecuta el ciclo del menú.
- * Muestra el menú al usuario, lee su entrada, procesa la opción 
- * seleccionada y repite el ciclo hasta que el usuario elija salir.
- *****Parámetros************************************
- * Ninguno.
- *****Retorno***************************************
- * @IO (): Controla la interacción con el usuario, imprime el menú, 
- * lee opciones, y gestiona la lógica de repetición o salida del programa.
- ***************************************************/
--}
+-- Definición de la función mainLoop
+mainLoop :: MobiliariosCargados -> IORef (V.Vector Sala) -> IO ()
+mainLoop mobiliariosRef salasRef = do
+    mostrarMenuPrincipal
+    opcion <- getLine
+    let opcionInt = read opcion :: Int
+    case opcionInt of
+        1 -> do
+            mainOO mobiliariosRef salasRef
+            mainLoop mobiliariosRef salasRef
+        2 -> do
+            mainOG
+            mainLoop mobiliariosRef salasRef
+        3 -> putStrLn "Saliendo del programa..."
+        _ -> do
+            putStrLn "Opción inválida. Intente de nuevo."
+            mainLoop mobiliariosRef salasRef
+
+-- Función principal
+
+
 main :: IO ()
 main = do
     mobiliariosRef <- newIORef V.empty 
     salasRef <- newIORef V.empty 
     
-    -- Intentar cargar los mobiliarios desde el archivo
-    result <- getMobiliarios "Archivos del sistema/mobiliario.csv"
-    case result of
-        Left err -> do
-            putStrLn $ "Error al cargar mobiliarios: " ++ err
-        Right nuevosMobiliarios -> do
-            if V.null nuevosMobiliarios
-                then putStrLn "\nNo se encontraron mobiliarios registrados en el archivo CSV del sistema."
+    -- Verificar si el archivo de mobiliario existe
+    existeMobiliario <- doesFileExist "Archivos del sistema/mobiliario.csv"
+    if existeMobiliario
+        then do
+            result <- getMobiliarios "Archivos del sistema/mobiliario.csv"
+            case result of
+                Left err -> putStrLn $ "Error al cargar mobiliarios: " ++ err
+                Right nuevosMobiliarios -> do
+                    if V.null nuevosMobiliarios
+                        then putStrLn "\nNo se encontraron mobiliarios registrados en el archivo CSV del sistema."
+                        else do
+                            agregarMobiliarios mobiliariosRef nuevosMobiliarios
+                            mobiliariosActualizados <- readIORef mobiliariosRef
+                            putStrLn "\nMobiliario en registro:\n"
+                            forM_ mobiliariosActualizados $ \mobiliario -> do
+                                putStrLn $ "Código: " ++ codigo mobiliario
+                                putStrLn $ "Nombre: " ++ nombre mobiliario
+                                putStrLn $ "Descripción: " ++ descripcion mobiliario
+                                putStrLn $ "Tipo: " ++ tipo mobiliario
+                                putStrLn ""
+        else putStrLn "El archivo de mobiliario no existe."
+
+    -- Verificar si el archivo de salas existe
+    existeSalas <- doesFileExist "Archivos del sistema/salas.json"
+    if existeSalas
+        then do
+            cargarSalasDesdeJSON "Archivos del sistema/salas.json" salasRef
+            salasCreadas <- readIORef salasRef
+            if V.null salasCreadas
+                then putStrLn "No se encontraron salas registradas en el archivo JSON del sistema."
                 else do
-                    -- Agregar los nuevos mobiliarios a los existentes
-                    agregarMobiliarios mobiliariosRef nuevosMobiliarios
+                    putStrLn "\nSalas en registro:\n"
+                    forM_ salasCreadas $ \sala -> do
+                        putStrLn $ "Código de sala: " ++ codigoSala sala
+                        putStrLn $ "Nombre de sala: " ++ nombreSala sala
+                        putStrLn $ "Edificio: " ++ edificio sala
+                        putStrLn $ "Piso: " ++ show (piso sala)
+        else putStrLn "El archivo de salas no existe."
 
-                    -- Mostrar los mobiliarios actualizados
-                    mobiliariosActualizados <- readIORef mobiliariosRef
-                    putStrLn "\nMobiliario en registro:\n"
-                    forM_ mobiliariosActualizados $ \mobiliario -> do
-                        putStrLn $ "Código: " ++ codigo mobiliario
-                        putStrLn $ "Nombre: " ++ nombre mobiliario
-                        putStrLn $ "Descripción: " ++ descripcion mobiliario
-                        putStrLn $ "Tipo: " ++ tipo mobiliario
-                        putStrLn ""
-
-    -- Cargar las salas desde el archivo JSON
-    cargarSalasDesdeJSON "Archivos del sistema/salas.json" salasRef
-
-    -- Mostrar las salas cargadas
-    salasCreadas <- readIORef salasRef
-    if V.null salasCreadas
-        then putStrLn "No se encontraron salas registradas en el archivo JSON del sistema."
-        else do
-            putStrLn "\nSalas en registro:\n"
-            forM_ salasCreadas $ \sala -> do
-                putStrLn $ "Código de sala: " ++ codigoSala sala
-                putStrLn $ "Nombre de sala: " ++ nombreSala sala
-                putStrLn $ "Edificio: " ++ edificio sala
-                putStrLn $ "Piso: " ++ show (piso sala)
-                putStrLn $ "Capacidad: " ++ show (capacidad sala)
-                putStrLn $ "Ubicación: " ++ ubicacion sala
-                putStrLn $ "Mobiliario seleccionado: " ++ show (mobiliarioSeleccionado sala)
-                putStrLn ""
-
+    -- Iniciar el ciclo del menú principal
     mainLoop mobiliariosRef salasRef
 
-mainLoop :: IORef (V.Vector Mobiliario) -> IORef (V.Vector Sala) -> IO ()
-mainLoop mobiliariosRef salasRef = do
-    
-    usuarioRef <- newIORef Nothing
-
-    mostrarMenuPrincipal
-    opcion <- getLine
-    let opcionInt = read opcion :: Int
-    case opcionInt of
-        1 -> do 
-            result <- getUsers
-            case result of
-                Left err -> putStrLn $ "Error: " ++ err
-                Right usuarios -> do
-                    idValido <- validarIdUsuario usuarios usuarioRef
-                    case idValido of
-                        Nothing -> mainLoop mobiliariosRef salasRef
-                        Just _ -> do
-                            usuarioActual <- readIORef usuarioRef
-                            case usuarioActual of
-                                Just usuario -> putStrLn $ "\nBienvenido, " ++ nombreCompleto usuario
-                                Nothing -> putStrLn "\nError: Usuario no encontrado"
-                            putStrLn "\nEntrando al submenú de Opciones Operativas"
-                            mainOO mobiliariosRef salasRef
-        2 -> do 
-            putStrLn "Has seleccionado 2"
-            mainOO mobiliariosRef salasRef
-        3 -> do
-            putStrLn "\nSaliendo del programa..."
-            guardarMobiliarioCSV "Archivos del sistema/mobiliario.csv" mobiliariosRef
-            guardarSalasComoJSON "Archivos del sistema/salas.json" salasRef
-        _ -> do
-            putStrLn "\nOpción inválida. Vuelva a intentar."
-            mainLoop mobiliariosRef salasRef
