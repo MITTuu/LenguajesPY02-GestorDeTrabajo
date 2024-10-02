@@ -1,0 +1,62 @@
+[
+  {
+    "codigoReserva": "R001",
+    "codigoSala": "S001",
+    "fecha": "2024-10-01",
+    "cantidadPersonas": 10
+  },
+  {
+    "codigoReserva": "R002",
+    "codigoSala": "S002",
+    "fecha": "2024-10-02",
+    "cantidadPersonas": 20
+  },
+  {
+    "codigoReserva": "R003",
+    "codigoSala": "S001",
+    "fecha": "2024-10-03",
+    "cantidadPersonas": 15
+  },
+  {
+    "codigoReserva": "R004",
+    "codigoSala": "S003",
+    "fecha": "2024-10-04",
+    "cantidadPersonas": 8
+  },
+  {
+    "codigoReserva": "R005",
+    "codigoSala": "S002",
+    "fecha": "2024-10-05",
+    "cantidadPersonas": 25
+  },
+  {
+    "codigoReserva": "R006",
+    "codigoSala": "S001",
+    "fecha": "2024-10-06",
+    "cantidadPersonas": 5
+  },
+  {
+    "codigoReserva": "R007",
+    "codigoSala": "S004",
+    "fecha": "2024-10-07",
+    "cantidadPersonas": 18
+  },
+  {
+    "codigoReserva": "R008",
+    "codigoSala": "S003",
+    "fecha": "2024-10-08",
+    "cantidadPersonas": 12
+  },
+  {
+    "codigoReserva": "R009",
+    "codigoSala": "S001",
+    "fecha": "2024-10-09",
+    "cantidadPersonas": 10
+  },
+  {
+    "codigoReserva": "R010",
+    "codigoSala": "S005",
+    "fecha": "2024-10-10",
+    "cantidadPersonas": 30
+  }
+]
