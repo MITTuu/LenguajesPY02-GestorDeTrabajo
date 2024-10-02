@@ -208,21 +208,39 @@ mostrarMenuPrincipal = do
     putStrLn "Seleccione una opción: "
 
 -- Definición de la función mainLoop
-mainLoop :: MobiliariosCargados -> IORef (V.Vector Sala) -> IO ()
+mainLoop :: IORef (V.Vector Mobiliario) -> IORef (V.Vector Sala) -> IO ()
 mainLoop mobiliariosRef salasRef = do
+    
+    usuarioRef <- newIORef Nothing
+
     mostrarMenuPrincipal
     opcion <- getLine
     let opcionInt = read opcion :: Int
     case opcionInt of
-        1 -> do
-            mainOO mobiliariosRef salasRef
-            mainLoop mobiliariosRef salasRef
-        2 -> do
+        1 -> do 
+            result <- getUsers
+            case result of
+                Left err -> putStrLn $ "Error: " ++ err
+                Right usuarios -> do
+                    idValido <- validarIdUsuario usuarios usuarioRef
+                    case idValido of
+                        Nothing -> mainLoop mobiliariosRef salasRef
+                        Just _ -> do
+                            usuarioActual <- readIORef usuarioRef
+                            case usuarioActual of
+                                Just usuario -> putStrLn $ "\nBienvenido, " ++ nombreCompleto usuario
+                                Nothing -> putStrLn "\nError: Usuario no encontrado"
+                            putStrLn "\nEntrando al submenú de Opciones Operativas"
+                            mainOO mobiliariosRef salasRef
+        2 -> do 
             mainOG
-            mainLoop mobiliariosRef salasRef
-        3 -> putStrLn "Saliendo del programa..."
+            mainOO mobiliariosRef salasRef
+        3 -> do
+            putStrLn "\nSaliendo del programa..."
+            guardarMobiliarioCSV "Archivos del sistema/mobiliario.csv" mobiliariosRef
+            guardarSalasComoJSON "Archivos del sistema/salas.json" salasRef
         _ -> do
-            putStrLn "Opción inválida. Intente de nuevo."
+            putStrLn "\nOpción inválida. Vuelva a intentar."
             mainLoop mobiliariosRef salasRef
 
 -- Función principal
@@ -255,22 +273,24 @@ main = do
                                 putStrLn ""
         else putStrLn "El archivo de mobiliario no existe."
 
-    -- Verificar si el archivo de salas existe
-    existeSalas <- doesFileExist "Archivos del sistema/salas.json"
-    if existeSalas
-        then do
-            cargarSalasDesdeJSON "Archivos del sistema/salas.json" salasRef
-            salasCreadas <- readIORef salasRef
-            if V.null salasCreadas
-                then putStrLn "No se encontraron salas registradas en el archivo JSON del sistema."
-                else do
-                    putStrLn "\nSalas en registro:\n"
-                    forM_ salasCreadas $ \sala -> do
-                        putStrLn $ "Código de sala: " ++ codigoSala sala
-                        putStrLn $ "Nombre de sala: " ++ nombreSala sala
-                        putStrLn $ "Edificio: " ++ edificio sala
-                        putStrLn $ "Piso: " ++ show (piso sala)
-        else putStrLn "El archivo de salas no existe."
+    -- Cargar las salas desde el archivo JSON
+    cargarSalasDesdeJSON "Archivos del sistema/salas.json" salasRef
+
+    -- Mostrar las salas cargadas
+    salasCreadas <- readIORef salasRef
+    if V.null salasCreadas
+        then putStrLn "No se encontraron salas registradas en el archivo JSON del sistema."
+        else do
+            putStrLn "\nSalas en registro:\n"
+            forM_ salasCreadas $ \sala -> do
+                putStrLn $ "Código de sala: " ++ codigoSala sala
+                putStrLn $ "Nombre de sala: " ++ nombreSala sala
+                putStrLn $ "Edificio: " ++ edificio sala
+                putStrLn $ "Piso: " ++ show (piso sala)
+                putStrLn $ "Capacidad: " ++ show (capacidad sala)
+                putStrLn $ "Ubicación: " ++ ubicacion sala
+                putStrLn $ "Mobiliario seleccionado: " ++ show (mobiliarioSeleccionado sala)
+                putStrLn ""
 
     -- Iniciar el ciclo del menú principal
     mainLoop mobiliariosRef salasRef
