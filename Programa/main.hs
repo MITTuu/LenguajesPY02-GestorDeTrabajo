@@ -24,6 +24,7 @@ import Funcs
     , guardarMobiliarioCSV
     , crearSala
     , mostrarInformacionSala
+    , informeReservas
     , guardarSalasComoJSON
     , cargarSalasDesdeJSON
     , crearReserva
