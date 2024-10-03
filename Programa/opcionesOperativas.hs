@@ -7,7 +7,7 @@ module Operativas
   , guardarMobiliarioCSV
   , crearSala
   , mostrarInformacionSala
-  , guardarSalasComoJSON
+  , guardarSalasComoJSON 
   , cargarSalasDesdeJSON
   ) where
 
