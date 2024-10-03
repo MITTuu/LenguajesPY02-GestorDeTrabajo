@@ -125,7 +125,7 @@ mainOO mobiliariosRef salasRef reservasRef = do
             mostrarInformacionSala mobiliariosRef salasRef codigoSala
             mainOO mobiliariosRef salasRef reservasRef
         4 -> do
-            putStrLn "Has seleccionado 4"
+            informeReservas mobiliariosRef salasRef reservasRef
             mainOO mobiliariosRef salasRef reservasRef
         5 -> do      
             putStrLn "\nVolviendo al menú principal..."
