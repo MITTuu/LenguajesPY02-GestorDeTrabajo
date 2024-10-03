@@ -1,4 +1,5 @@
 module Main where
+
 import Control.Applicative ((<*>), (<$>))
 import Control.Monad (forM_)
 import Data.ByteString (ByteString)
@@ -12,19 +13,28 @@ import System.Directory (doesFileExist)
 import System.IO (putStrLn, writeFile)
 import Text.Printf (printf)
 import Auxiliares (User(..), getUsers)
-import Operativas 
+import Funcs 
     ( Mobiliario(..)
     , Sala(..)
+    , Reserva(..)
     , MobiliariosCargados
     , SalasCreadas
+    , ReservasCreadas
     , getMobiliarios
     , guardarMobiliarioCSV
     , crearSala
     , mostrarInformacionSala
     , guardarSalasComoJSON
     , cargarSalasDesdeJSON
+    , crearReserva
+    , guardarReservasComoJSON
+    , cargarReservasDesdeJSON
+    , mostrarInformacionReserva
+    , cancelarReserva
+    , consultarDisponibilidadPorFecha
+    , consultarDisponibilidadPorRango
+    , modificarReserva
     )
-import OpcionesGenerales (crearReserva, consultarReserva, cancelarReserva, modificarReserva, consultarDisponibilidad)
 
 -- Referencia mutable para almacenar el usuario actual
 type UsuarioActual = IORef (Maybe User)
@@ -80,8 +90,8 @@ mostrarSubmenuOO = do
     putStrLn "Seleccione una opción: "
 
 -- Manejar el menú de opciones operativas
-mainOO :: MobiliariosCargados -> IORef (V.Vector Sala) -> IO ()
-mainOO mobiliariosRef salasRef = do
+mainOO :: MobiliariosCargados -> SalasCreadas -> ReservasCreadas -> IO ()
+mainOO mobiliariosRef salasRef reservasRef = do
     mostrarSubmenuOO
     opcion <- getLine
     let opcionInt = read opcion :: Int
@@ -93,7 +103,7 @@ mainOO mobiliariosRef salasRef = do
             case result of
                 Left err -> do
                     putStrLn $ "Error: " ++ err
-                    mainOO mobiliariosRef salasRef
+                    mainOO mobiliariosRef salasRef reservasRef
                 Right nuevosMobiliarios -> do
                     agregarMobiliarios mobiliariosRef nuevosMobiliarios
                     mobiliariosActualizados <- readIORef mobiliariosRef
@@ -104,25 +114,25 @@ mainOO mobiliariosRef salasRef = do
                         putStrLn $ "Descripción: " ++ descripcion mobiliario
                         putStrLn $ "Tipo: " ++ tipo mobiliario
                         putStrLn ""
-                    mainOO mobiliariosRef salasRef
+                    mainOO mobiliariosRef salasRef reservasRef
         2 -> do
             codigo <- crearSala mobiliariosRef salasRef
             putStrLn $ "\nSala creada con el código: " ++ codigo
-            mainOO mobiliariosRef salasRef
+            mainOO mobiliariosRef salasRef reservasRef
         3 -> do
             putStrLn "\nIngrese el código de la sala o ingresa 'Todo' para ver todas las salas: "
             codigoSala <- getLine
             mostrarInformacionSala mobiliariosRef salasRef codigoSala
-            mainOO mobiliariosRef salasRef
+            mainOO mobiliariosRef salasRef reservasRef
         4 -> do
             putStrLn "Has seleccionado 4"
-            mainOO mobiliariosRef salasRef
+            mainOO mobiliariosRef salasRef reservasRef
         5 -> do      
             putStrLn "\nVolviendo al menú principal..."
-            mainLoop mobiliariosRef salasRef
+            mainLoop mobiliariosRef salasRef reservasRef
         _ -> do
             putStrLn "\nOpción inválida. Vuelva a intentar."
-            mainOO mobiliariosRef salasRef
+            mainOO mobiliariosRef salasRef reservasRef
 
 -- Mostrar submenú de opciones generales
 mostrarSubmenuOG :: IO ()
@@ -136,61 +146,56 @@ mostrarSubmenuOG = do
     putStrLn "2. Consultar Reserva"
     putStrLn "3. Cancelar Reserva"
     putStrLn "4. Modificar Reserva"
-    putStrLn "5. Consultar Disponibilidad"
-    putStrLn "6. Volver al Menú Principal"
+    putStrLn "5. Consultar la disponibilidad por rango de fecha"
+    putStrLn "6. Consultar la disponibilidad por fecha"
+    putStrLn "7. Salir"
     putStrLn ""
     putStrLn "Seleccione una opción: "
 
 -- Manejar el menú de opciones generales
-mainOG :: IO ()
-mainOG = do
+mainOG :: MobiliariosCargados -> SalasCreadas -> ReservasCreadas -> IO ()
+mainOG mobiliariosRef salasRef reservasRef = do
     mostrarSubmenuOG
     opcion <- getLine
     let opcionInt = read opcion :: Int
     case opcionInt of
         1 -> do
-            putStrLn "Ingrese el ID de usuario: "
-            idUsuario <- getLine
-            putStrLn "Ingrese el ID de la sala: "
-            idSala <- getLine
-            putStrLn "Ingrese la fecha de la reserva (YYYY-MM-DD): "
-            fecha <- getLine
-            putStrLn "Ingrese la cantidad de personas: "
-            cantidadPersonasStr <- getLine
-            let cantidadPersonas = read cantidadPersonasStr :: Int
-            crearReserva idUsuario idSala fecha cantidadPersonas
-            mainOG
+            codigo <- crearReserva reservasRef salasRef
+            putStrLn $ "\nReserva creada con código " ++ codigo
+            mainOG mobiliariosRef salasRef reservasRef
         2 -> do
-            putStrLn "Ingrese el código de la reserva: "
+            putStrLn "\nIngrese el código de la reserva o ingresa 'Todo' para ver todas las reservas: "
             codigoReserva <- getLine
-            consultarReserva codigoReserva
-            mainOG
+            mostrarInformacionReserva mobiliariosRef salasRef reservasRef codigoReserva
+            mainOG mobiliariosRef salasRef reservasRef
         3 -> do
-            putStrLn "Ingrese el código de la reserva a cancelar: "
+            putStrLn "\nIngrese el código de la reserva a eliminar: "
             codigoReserva <- getLine
-            cancelarReserva codigoReserva
-            mainOG
+            cancelarReserva reservasRef codigoReserva
+            mainOG mobiliariosRef salasRef reservasRef
         4 -> do
-            putStrLn "Ingrese el código de la reserva a modificar: "
-            codigoReserva <- getLine
-            putStrLn "Ingrese el nuevo ID de la sala: "
-            nuevaSala <- getLine
-            putStrLn "Ingrese la nueva fecha de la reserva (YYYY-MM-DD): "
-            nuevaFecha <- getLine
-            putStrLn "Ingrese la nueva cantidad de personas: "
-            nuevaCantidadStr <- getLine
-            let nuevaCantidad = read nuevaCantidadStr :: Int
-            modificarReserva codigoReserva nuevaSala nuevaFecha nuevaCantidad
-            mainOG
+            modificarReserva reservasRef salasRef
+            mainOG mobiliariosRef salasRef reservasRef
         5 -> do
-            putStrLn "Ingrese la fecha para consultar disponibilidad (YYYY-MM-DD): "
+            putStrLn "\nConsulta disponibilidad por rango de fechas"
+            putStrLn "Ingrese la fecha de inicio (YYYY-MM-DD):"
+            fechaInicio <- getLine
+            putStrLn "Ingrese la fecha de fin (YYYY-MM-DD):"
+            fechaFin <- getLine
+            consultarDisponibilidadPorRango reservasRef salasRef fechaInicio fechaFin
+            mainOG mobiliariosRef salasRef reservasRef 
+        6 -> do      
+            putStrLn "\nConsulta disponibilidad por fecha"
+            putStrLn "Ingrese la fecha para consultar disponibilidad (YYYY-MM-DD):"
             fechaConsulta <- getLine
-            consultarDisponibilidad fechaConsulta
-            mainOG
-        6 -> putStrLn "Volviendo al Menú Principal..."
+            consultarDisponibilidadPorFecha reservasRef salasRef fechaConsulta  -- No hay necesidad de convertir a lista
+            mainOG mobiliariosRef salasRef reservasRef 
+        7 -> do      
+            putStrLn "\nVolviendo al menú principal..."
+            mainLoop mobiliariosRef salasRef reservasRef
         _ -> do
             putStrLn "Opción no válida. Intente de nuevo."
-            mainOG
+            mainOG mobiliariosRef salasRef reservasRef
 
             
 -- Mostrar menú principal
@@ -208,8 +213,8 @@ mostrarMenuPrincipal = do
     putStrLn "Seleccione una opción: "
 
 -- Definición de la función mainLoop
-mainLoop :: IORef (V.Vector Mobiliario) -> IORef (V.Vector Sala) -> IO ()
-mainLoop mobiliariosRef salasRef = do
+mainLoop :: MobiliariosCargados -> SalasCreadas -> ReservasCreadas -> IO ()
+mainLoop mobiliariosRef salasRef reservasRef = do
     
     usuarioRef <- newIORef Nothing
 
@@ -224,32 +229,31 @@ mainLoop mobiliariosRef salasRef = do
                 Right usuarios -> do
                     idValido <- validarIdUsuario usuarios usuarioRef
                     case idValido of
-                        Nothing -> mainLoop mobiliariosRef salasRef
+                        Nothing -> mainLoop mobiliariosRef salasRef reservasRef
                         Just _ -> do
                             usuarioActual <- readIORef usuarioRef
                             case usuarioActual of
                                 Just usuario -> putStrLn $ "\nBienvenido, " ++ nombreCompleto usuario
                                 Nothing -> putStrLn "\nError: Usuario no encontrado"
                             putStrLn "\nEntrando al submenú de Opciones Operativas"
-                            mainOO mobiliariosRef salasRef
+                            mainOO mobiliariosRef salasRef reservasRef
         2 -> do 
-            mainOG
-            mainOO mobiliariosRef salasRef
+            mainOG mobiliariosRef salasRef reservasRef
         3 -> do
             putStrLn "\nSaliendo del programa..."
             guardarMobiliarioCSV "Archivos del sistema/mobiliario.csv" mobiliariosRef
             guardarSalasComoJSON "Archivos del sistema/salas.json" salasRef
+            guardarReservasComoJSON "Archivos del sistema/reservas.json" reservasRef
         _ -> do
             putStrLn "\nOpción inválida. Vuelva a intentar."
-            mainLoop mobiliariosRef salasRef
+            mainLoop mobiliariosRef salasRef reservasRef
 
 -- Función principal
-
-
 main :: IO ()
 main = do
     mobiliariosRef <- newIORef V.empty 
     salasRef <- newIORef V.empty 
+    reservasRef <- newIORef V.empty 
     
     -- Verificar si el archivo de mobiliario existe
     existeMobiliario <- doesFileExist "Archivos del sistema/mobiliario.csv"
@@ -292,6 +296,23 @@ main = do
                 putStrLn $ "Mobiliario seleccionado: " ++ show (mobiliarioSeleccionado sala)
                 putStrLn ""
 
+    --Cargar las reservas
+    cargarReservasDesdeJSON "Archivos del sistema/reservas.json" reservasRef
+    
+    -- Mostrar las reservas cargadas
+    reservasCreadas <- readIORef reservasRef
+    if V.null reservasCreadas
+        then putStrLn "No se encontraron reservas registradas en el archivo JSON del sistema."
+        else do
+            putStrLn "\nReservas en registro:\n"
+            forM_ reservasCreadas $ \reserva -> do
+                putStrLn $ "Código de reserva: " ++ codigoReserva reserva
+                putStrLn $ "ID de usuario: " ++ idUsuarioReserva reserva 
+                putStrLn $ "Código de sala reservada: " ++ codigoSalaReserva reserva
+                putStrLn $ "Fecha de la reserva: " ++ fecha reserva
+                putStrLn $ "Cantidad de personas: " ++ show (cantidadPersonas reserva)
+                putStrLn ""
+                
     -- Iniciar el ciclo del menú principal
-    mainLoop mobiliariosRef salasRef
+    mainLoop mobiliariosRef salasRef reservasRef
 
