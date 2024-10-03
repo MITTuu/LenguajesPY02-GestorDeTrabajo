@@ -32,6 +32,9 @@ import Prelude hiding (filter)
 import Data.Aeson as Aeson
 import GHC.Generics (Generic)
 import Data.ByteString.Lazy (ByteString, readFile)
+import qualified Data.Map as Map
+import Data.List (maximumBy)
+import Data.Ord (comparing)
 import Auxiliares (User(..), getUsers)
 
 {------------------------------------------------------------------------------------------------------------------------------}
@@ -464,18 +467,159 @@ mostrarInformacionMobiliario mobiliariosRef codigoBuscado = do
             "Nombre: " ++ nombre mobiliario ++ "\n" ++
             "Descripción: " ++ descripcion mobiliario ++ "\n" ++
             "Tipo: " ++ tipo mobiliario ++ "\n"
-
-{-
-Informe de reservas
-Al ingresar a esta opción, el sistema mostrará la información de todas las reservas que se han
-generado en el sistema, con toda la información relacionada (muestra además datos generales de
-la sala).
-Además, indicará 3 datos estadísticos:
-1. Sala más utilizada
-2. Usuario con mayor número de reservas
-3. Día con mayor cantidad de reservas
+{- 
+/*****Nombre****************************************
+ * informeReservas
+ *****Descripción***********************************
+ * Genera un informe de las reservas, mostrando todas
+ * las reservas registradas y estadísticas relevantes.
+ * Incluye la sala más utilizada, el usuario con mayor
+ * número de reservas y el día con más reservas.
+ *****Parámetros************************************
+ * @mobiliariosRef: Referencia mutable que contiene el
+ * vector de mobiliarios cargados.
+ * @salasRef: Referencia mutable que contiene el vector
+ * de salas creadas.
+ * @reservasRef: Referencia mutable que contiene el
+ * vector de reservas creadas.
+ *****Retorno***************************************
+ * @IO (): Imprime el informe en la consola.
+ ***************************************************/
 -}
+informeReservas :: MobiliariosCargados -> SalasCreadas -> ReservasCreadas -> IO ()
+informeReservas mobiliariosRef salasRef reservasRef = do
+    reservas <- readIORef reservasRef
+    salas <- readIORef salasRef
+    
+    putStrLn "\n--- Informe de Reservas ---\n"
+    
+    -- Mostrar todas las reservas
+    mostrarInformacionReserva mobiliariosRef salasRef reservasRef "Todo"
+    
+    putStrLn "\n--- Estadística ---\n"
+    
+    -- Mostrar la sala más utilizada
+    mostrarSalaMasUtilizada mobiliariosRef salasRef reservasRef
+    
+    -- Mostrar el usuario con mayor reservas
+    mostrarUsuarioConMasReservas reservasRef
+    
+    -- Mostrar el día con más reservas
+    mostrarDiaConMasReservas reservasRef
+    
+{- 
+/*****Nombre****************************************
+ * mostrarSalaMasUtilizada
+ *****Descripción***********************************
+ * Muestra la sala que ha sido utilizada con más
+ * frecuencia en las reservas. Cuenta las reservas
+ * por código de sala y muestra los detalles de la sala
+ * más utilizada.
+ *****Parámetros************************************
+ * @mobiliariosRef: Referencia mutable que contiene el
+ * vector de mobiliarios cargados.
+ * @salasRef: Referencia mutable que contiene el vector
+ * de salas creadas.
+ * @reservasRef: Referencia mutable que contiene el
+ * vector de reservas creadas.
+ *****Retorno***************************************
+ * @IO (): Imprime en la consola la sala más utilizada
+ * y sus detalles.
+ ***************************************************/
+-}
+mostrarSalaMasUtilizada :: MobiliariosCargados -> SalasCreadas -> ReservasCreadas -> IO ()
+mostrarSalaMasUtilizada mobiliariosRef salasRef reservasRef = do
+    reservas <- readIORef reservasRef
+    salas <- readIORef salasRef
 
+    if V.null reservas
+        then putStrLn "No hay reservas registradas."
+        else do
+            -- Contar cuántas veces se ha utilizado cada sala
+            let conteoSalas = foldr (\reserva acc -> Map.insertWith (+) (codigoSalaReserva reserva) 1 acc) Map.empty (V.toList reservas)
+
+            -- Encontrar la sala más utilizada
+            let salaMasUtilizada = fst $ maximumBy (comparing snd) (Map.toList conteoSalas)
+
+            -- Mostrar los detalles de la sala más utilizada
+            putStrLn $ "La sala con código " ++ salaMasUtilizada ++ " es la más utilizada."
+            mostrarInformacionSala mobiliariosRef salasRef salaMasUtilizada
+
+{- 
+/*****Nombre****************************************
+ * mostrarUsuarioConMasReservas
+ *****Descripción***********************************
+ * Muestra el usuario que ha realizado la mayor
+ * cantidad de reservas. Cuenta las reservas por ID
+ * de usuario y carga la información del usuario desde
+ * el archivo CSV correspondiente.
+ *****Parámetros************************************
+ * @reservasRef: Referencia mutable que contiene el
+ * vector de reservas creadas.
+ *****Retorno***************************************
+ * @IO (): Imprime en la consola el nombre del usuario
+ * con más reservas y la cantidad total de reservas.
+ ***************************************************/
+-}
+mostrarUsuarioConMasReservas :: ReservasCreadas -> IO ()
+mostrarUsuarioConMasReservas reservasRef = do
+    reservas <- readIORef reservasRef
+
+    if V.null reservas
+        then putStrLn "No hay reservas registradas."
+        else do
+            -- Contar cuántas reservas ha hecho cada usuario
+            let conteoUsuarios = foldr (\reserva acc -> Map.insertWith (+) (idUsuarioReserva reserva) 1 acc) Map.empty (V.toList reservas)
+
+            -- Encontrar el usuario con más reservas
+            let usuarioConMasReservas = fst $ maximumBy (comparing snd) (Map.toList conteoUsuarios)
+
+            -- Cargar los usuarios desde el archivo CSV
+            usuarioRef <- newIORef Nothing 
+            result <- getUsers
+            case result of
+                Left err -> putStrLn $ "Error al cargar usuarios: " ++ err
+                Right usuarios -> do
+                    -- Buscar el nombre completo del usuario con más reservas
+                    let usuario = V.find (\u -> idUsuario u == usuarioConMasReservas) usuarios
+                    case usuario of
+                        Just u -> do
+                            writeIORef usuarioRef (Just u)
+                            putStrLn $ "El usuario con más reservas es " ++ nombreCompleto u ++
+                                       " con " ++ show (conteoUsuarios Map.! usuarioConMasReservas) ++ " reservas."
+                        Nothing -> putStrLn $ "No se encontró el usuario con ID: " ++ usuarioConMasReservas
+
+{- 
+/*****Nombre****************************************
+ * mostrarDiaConMasReservas
+ *****Descripción***********************************
+ * Muestra el día en el que se han registrado la
+ * mayor cantidad de reservas. Cuenta las reservas por
+ * fecha y muestra el resultado en la consola.
+ *****Parámetros************************************
+ * @reservasRef: Referencia mutable que contiene el
+ * vector de reservas creadas.
+ *****Retorno***************************************
+ * @IO (): Imprime en la consola el día con más
+ * reservas y la cantidad total de reservas en ese día.
+ ***************************************************/
+-}
+mostrarDiaConMasReservas :: ReservasCreadas -> IO ()
+mostrarDiaConMasReservas reservasRef = do
+    reservas <- readIORef reservasRef
+
+    if V.null reservas
+        then putStrLn "No hay reservas registradas."
+        else do
+            -- Contar cuántas reservas se han hecho en cada fecha
+            let conteoPorFecha = foldr (\reserva acc -> Map.insertWith (+) (fecha reserva) 1 acc) Map.empty (V.toList reservas)
+
+            -- Encontrar el día con más reservas
+            let diaConMasReservas = fst $ maximumBy (comparing snd) (Map.toList conteoPorFecha)
+
+            -- Mostrar el resultado
+            putStrLn $ "\nEl día " ++ diaConMasReservas ++ " cuenta con la mayor cantidad de reservas registradas" ++
+                       ", con " ++ show (conteoPorFecha Map.! diaConMasReservas) ++ " reservas."
 
 {- 
 /*****Nombre****************************************
