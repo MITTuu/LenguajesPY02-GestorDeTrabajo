@@ -40,7 +40,21 @@ import Funcs
 -- Referencia mutable para almacenar el usuario actual
 type UsuarioActual = IORef (Maybe User)
 
--- Validar ID de usuario
+{- 
+/*****Nombre****************************************
+ * validarIdUsuario
+ *****Descripción***********************************
+ * Solicita al usuario ingresar un ID, lo valida
+ * contra una lista de usuarios, y actualiza la
+ * referencia mutable con el usuario correspondiente.
+ *****Parámetros************************************
+ * @usuarios: Vector que contiene los usuarios cargados.
+ * @usuarioRef: Referencia mutable del usuario actual.
+ *****Retorno***************************************
+ * @IO (Maybe String): Retorna el ID validado o Nothing
+ * si se selecciona la opción de volver.
+ ***************************************************/
+-}
 validarIdUsuario :: V.Vector User -> UsuarioActual -> IO (Maybe String)
 validarIdUsuario usuarios usuarioRef = do
     putStrLn "\nIngrese el ID del usuario ('v' para volver al menú principal): "
@@ -57,7 +71,20 @@ validarIdUsuario usuarios usuarioRef = do
                     putStrLn "\nID no encontrado. Intente de nuevo."
                     validarIdUsuario usuarios usuarioRef
 
--- Agregar mobiliarios
+{- 
+/*****Nombre****************************************
+ * agregarMobiliarios
+ *****Descripción***********************************
+ * Añade nuevos mobiliarios al registro, validando que
+ * no haya duplicados. Informa al usuario sobre
+ * mobiliarios duplicados que no se agregan.
+ *****Parámetros************************************
+ * @mobiliariosRef: Referencia mutable de mobiliarios cargados.
+ * @nuevosMobiliarios: Vector de mobiliarios que se desean agregar.
+ *****Retorno***************************************
+ * @IO (): Actualiza la referencia mutable con los nuevos mobiliarios.
+ ***************************************************/
+-}
 agregarMobiliarios :: MobiliariosCargados -> V.Vector Mobiliario -> IO ()
 agregarMobiliarios mobiliariosRef nuevosMobiliarios = do
     mobiliariosExistentes <- readIORef mobiliariosRef
@@ -69,12 +96,36 @@ agregarMobiliarios mobiliariosRef nuevosMobiliarios = do
     let mobiliariosActualizados = mobiliariosExistentes V.++ mobiliariosValidos
     writeIORef mobiliariosRef mobiliariosActualizados
 
--- Comprobar si el código está duplicado
+{- 
+/*****Nombre****************************************
+ * esCodigoDuplicado
+ *****Descripción***********************************
+ * Verifica si el código de un mobiliario ya existe en
+ * los mobiliarios cargados.
+ *****Parámetros************************************
+ * @nuevoMobiliario: Mobiliario que se desea agregar.
+ * @mobiliariosExistentes: Vector de mobiliarios ya registrados.
+ *****Retorno***************************************
+ * @Bool: Retorna True si el código está duplicado,
+ * de lo contrario, retorna False.
+ ***************************************************/
+-}
 esCodigoDuplicado :: Mobiliario -> V.Vector Mobiliario -> Bool
 esCodigoDuplicado nuevoMobiliario mobiliariosExistentes =
     V.any (\mobiliario -> codigo mobiliario == codigo nuevoMobiliario) mobiliariosExistentes
 
--- Mostrar submenú de opciones operativas
+{- 
+/*****Nombre****************************************
+ * mostrarSubmenuOO
+ *****Descripción***********************************
+ * Muestra el submenú de opciones operativas con 
+ * diferentes opciones para gestionar mobiliarios y salas.
+ *****Parámetros************************************
+ * No recibe parámetros.
+ *****Retorno***************************************
+ * @IO (): Imprime el submenú de opciones operativas.
+ ***************************************************/
+-}
 mostrarSubmenuOO :: IO ()
 mostrarSubmenuOO = do
     putStrLn " _____________________________________"
@@ -90,7 +141,20 @@ mostrarSubmenuOO = do
     putStrLn ""
     putStrLn "Seleccione una opción: "
 
--- Manejar el menú de opciones operativas
+{- 
+/*****Nombre****************************************
+ * mainOO
+ *****Descripción***********************************
+ * Maneja las opciones operativas, como cargar mobiliarios,
+ * crear salas y generar informes de reservas.
+ *****Parámetros************************************
+ * @mobiliariosRef: Referencia mutable de mobiliarios cargados.
+ * @salasRef: Referencia mutable de salas creadas.
+ * @reservasRef: Referencia mutable de reservas creadas.
+ *****Retorno***************************************
+ * @IO (): Ejecuta la opción seleccionada por el usuario.
+ ***************************************************/
+-}
 mainOO :: MobiliariosCargados -> SalasCreadas -> ReservasCreadas -> IO ()
 mainOO mobiliariosRef salasRef reservasRef = do
     mostrarSubmenuOO
@@ -135,7 +199,20 @@ mainOO mobiliariosRef salasRef reservasRef = do
             putStrLn "\nOpción inválida. Vuelva a intentar."
             mainOO mobiliariosRef salasRef reservasRef
 
--- Mostrar submenú de opciones generales
+{- 
+/*****Nombre****************************************
+ * mainOG
+ *****Descripción***********************************
+ * Gestiona las opciones generales, como crear, modificar
+ * y cancelar reservas, o consultar la disponibilidad.
+ *****Parámetros************************************
+ * @mobiliariosRef: Referencia mutable de mobiliarios cargados.
+ * @salasRef: Referencia mutable de salas creadas.
+ * @reservasRef: Referencia mutable de reservas creadas.
+ *****Retorno***************************************
+ * @IO (): Ejecuta la opción seleccionada por el usuario.
+ ***************************************************/
+-}
 mostrarSubmenuOG :: IO ()
 mostrarSubmenuOG = do
     putStrLn " _____________________________________"
@@ -149,11 +226,25 @@ mostrarSubmenuOG = do
     putStrLn "4. Modificar Reserva"
     putStrLn "5. Consultar la disponibilidad por rango de fecha"
     putStrLn "6. Consultar la disponibilidad por fecha"
-    putStrLn "7. Salir"
+    putStrLn "7. Volver"
     putStrLn ""
     putStrLn "Seleccione una opción: "
 
--- Manejar el menú de opciones generales
+{- 
+/*****Nombre****************************************
+ * mainLoop
+ *****Descripción***********************************
+ * Controla el flujo principal del programa, mostrando
+ * el menú principal y ejecutando las opciones según la
+ * selección del usuario.
+ *****Parámetros************************************
+ * @mobiliariosRef: Referencia mutable de mobiliarios cargados.
+ * @salasRef: Referencia mutable de salas creadas.
+ * @reservasRef: Referencia mutable de reservas creadas.
+ *****Retorno***************************************
+ * @IO (): Maneja el ciclo de ejecución principal del programa.
+ ***************************************************/
+-}
 mainOG :: MobiliariosCargados -> SalasCreadas -> ReservasCreadas -> IO ()
 mainOG mobiliariosRef salasRef reservasRef = do
     mostrarSubmenuOG
@@ -189,7 +280,7 @@ mainOG mobiliariosRef salasRef reservasRef = do
             putStrLn "\nConsulta disponibilidad por fecha"
             putStrLn "Ingrese la fecha para consultar disponibilidad (YYYY-MM-DD):"
             fechaConsulta <- getLine
-            consultarDisponibilidadPorFecha reservasRef salasRef fechaConsulta  -- No hay necesidad de convertir a lista
+            consultarDisponibilidadPorFecha reservasRef salasRef fechaConsulta
             mainOG mobiliariosRef salasRef reservasRef 
         7 -> do      
             putStrLn "\nVolviendo al menú principal..."
@@ -197,9 +288,20 @@ mainOG mobiliariosRef salasRef reservasRef = do
         _ -> do
             putStrLn "Opción no válida. Intente de nuevo."
             mainOG mobiliariosRef salasRef reservasRef
-
-            
--- Mostrar menú principal
+        
+{- 
+/*****Nombre****************************************
+ * main
+ *****Descripción***********************************
+ * Función principal del programa. Inicializa las referencias
+ * mutables, carga los datos desde archivos, y comienza la 
+ * ejecución del menú principal.
+ *****Parámetros************************************
+ * No recibe parámetros.
+ *****Retorno***************************************
+ * @IO (): Inicia el programa de gestión de espacios.
+ ***************************************************/
+-}
 mostrarMenuPrincipal :: IO ()
 mostrarMenuPrincipal = do
     putStrLn " _____________________________________"
@@ -316,4 +418,3 @@ main = do
                 
     -- Iniciar el ciclo del menú principal
     mainLoop mobiliariosRef salasRef reservasRef
-
