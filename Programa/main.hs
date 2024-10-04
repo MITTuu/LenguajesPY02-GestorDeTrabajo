@@ -201,16 +201,14 @@ mainOO mobiliariosRef salasRef reservasRef = do
 
 {- 
 /*****Nombre****************************************
- * mainOG
+ * mostrarSubmenuOG
  *****Descripción***********************************
- * Gestiona las opciones generales, como crear, modificar
- * y cancelar reservas, o consultar la disponibilidad.
+ * Muestra el submenú de opciones generales, donde el usuario
+ * puede realizar acciones relacionadas con la gestión de reservas.
  *****Parámetros************************************
- * @mobiliariosRef: Referencia mutable de mobiliarios cargados.
- * @salasRef: Referencia mutable de salas creadas.
- * @reservasRef: Referencia mutable de reservas creadas.
+ * @Ninguno
  *****Retorno***************************************
- * @IO (): Ejecuta la opción seleccionada por el usuario.
+ * @IO (): Despliega el submenú de opciones generales.
  ***************************************************/
 -}
 mostrarSubmenuOG :: IO ()
@@ -232,17 +230,16 @@ mostrarSubmenuOG = do
 
 {- 
 /*****Nombre****************************************
- * mainLoop
+ * mainOG
  *****Descripción***********************************
- * Controla el flujo principal del programa, mostrando
- * el menú principal y ejecutando las opciones según la
- * selección del usuario.
+ * Gestiona las opciones generales, como crear, modificar
+ * y cancelar reservas, o consultar la disponibilidad.
  *****Parámetros************************************
  * @mobiliariosRef: Referencia mutable de mobiliarios cargados.
  * @salasRef: Referencia mutable de salas creadas.
  * @reservasRef: Referencia mutable de reservas creadas.
  *****Retorno***************************************
- * @IO (): Maneja el ciclo de ejecución principal del programa.
+ * @IO (): Ejecuta la opción seleccionada por el usuario.
  ***************************************************/
 -}
 mainOG :: MobiliariosCargados -> SalasCreadas -> ReservasCreadas -> IO ()
@@ -289,17 +286,18 @@ mainOG mobiliariosRef salasRef reservasRef = do
             putStrLn "Opción no válida. Intente de nuevo."
             mainOG mobiliariosRef salasRef reservasRef
         
-{- 
+{-
 /*****Nombre****************************************
- * main
+ * mostrarMenuPrincipal
  *****Descripción***********************************
- * Función principal del programa. Inicializa las referencias
- * mutables, carga los datos desde archivos, y comienza la 
- * ejecución del menú principal.
+ * Función que imprime el menú principal del sistema de 
+ * Gestión de Espacios de Trabajo, mostrando las opciones 
+ * disponibles para el usuario.
  *****Parámetros************************************
  * No recibe parámetros.
  *****Retorno***************************************
- * @IO (): Inicia el programa de gestión de espacios.
+ * @IO (): Imprime el menú principal y solicita la selección 
+ * de una opción por parte del usuario.
  ***************************************************/
 -}
 mostrarMenuPrincipal :: IO ()
@@ -315,7 +313,21 @@ mostrarMenuPrincipal = do
     putStrLn ""
     putStrLn "Seleccione una opción: "
 
--- Definición de la función mainLoop
+{- 
+/*****Nombre****************************************
+ * mainLoop
+ *****Descripción***********************************
+ * Controla el flujo principal del programa, gestionando el
+ * menú principal y las diferentes secciones.
+ *****Parámetros************************************
+ * @mobiliariosRef: Referencia mutable de los mobiliarios cargados.
+ * @salasRef: Referencia mutable de las salas creadas.
+ * @reservasRef: Referencia mutable de las reservas creadas.
+ *****Retorno***************************************
+ * @IO (): Ejecuta el menú principal del programa y las
+ * interacciones del usuario.
+ ***************************************************/
+-}
 mainLoop :: MobiliariosCargados -> SalasCreadas -> ReservasCreadas -> IO ()
 mainLoop mobiliariosRef salasRef reservasRef = do
     
@@ -351,7 +363,19 @@ mainLoop mobiliariosRef salasRef reservasRef = do
             putStrLn "\nOpción inválida. Vuelva a intentar."
             mainLoop mobiliariosRef salasRef reservasRef
 
--- Función principal
+{- 
+/*****Nombre****************************************
+ * main
+ *****Descripción***********************************
+ * Función principal del programa. Inicializa las referencias
+ * mutables, carga los datos desde archivos, y comienza la 
+ * ejecución del menú principal.
+ *****Parámetros************************************
+ * No recibe parámetros.
+ *****Retorno***************************************
+ * @IO (): Inicia el programa de gestión de espacios.
+ ***************************************************/
+-}
 main :: IO ()
 main = do
     mobiliariosRef <- newIORef V.empty 
