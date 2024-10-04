@@ -679,7 +679,6 @@ manejarError e = putStrLn $ "\nOcurrió un error al guardar los datos: " ++ show
 {------------------------------------------------- Módulo Opciones Generales --------------------------------------------------}
 {------------------------------------------------------------------------------------------------------------------------------}
 
--- Validar ID de usuario
 {-
 /*****Nombre****************************************
  * validarIdUsuario
@@ -712,7 +711,6 @@ validarIdUsuario usuarios usuarioRef = do
             putStrLn "\nID no encontrado. Intente de nuevo."
             validarIdUsuario usuarios usuarioRef
 
--- Validar formato de fecha y que no sea menor a la fecha actual
 {-
 /*****Nombre****************************************
  * validarFecha
@@ -741,7 +739,6 @@ validarFecha fechaStr = do
         then return fechaParseada
         else return Nothing
 
--- Función principal para crear una reserva
 {-
 /*****Nombre****************************************
  * crearReserva
@@ -771,7 +768,7 @@ crearReserva reservasRef salasRef = do
     case resultUsuarios of
         Left errorMsg -> do
             putStrLn $ "Error al obtener los usuarios: " ++ errorMsg
-            return ""  -- o manejar el error de otra manera
+            return ""
         Right usuarios -> do
             usuarioRef <- newIORef Nothing 
 
@@ -814,9 +811,6 @@ crearReserva reservasRef salasRef = do
             putStrLn "Reserva creada con éxito."
             return nuevoCodigoReserva
 
-
-
--- Función para solicitar ID de usuario y validar que exista
 {-
 /*****Nombre****************************************
  * solicitarIDUsuario
@@ -840,7 +834,6 @@ solicitarIDUsuario usuarios usuarioRef = do
         Just id -> return id
         Nothing -> error ""
 
---Función para validar el ID de la sala
 {-
 /*****Nombre****************************************
  * solicitarIDSala
@@ -861,14 +854,12 @@ solicitarIDSala :: V.Vector Sala -> String -> IO String
 solicitarIDSala salas mensaje = do
     putStrLn mensaje
     input <- getLine
-    -- Validar entrada: Existencia de la sala
     if any (\s -> codigoSala s == input) (V.toList salas)  -- Verifica si el codigoSala coincide
         then return input  -- Si existe, devolvemos el ID ingresado
         else do
             putStrLn "El ID de sala ingresado no existe. Intente nuevamente."
             solicitarIDSala salas mensaje  -- Volver a solicitar el ID
 
--- Función para solicitar la cantidad de personas y validarla
 {-
 /*****Nombre****************************************
  * solicitarCantidadPersonas
@@ -900,7 +891,7 @@ solicitarCantidadPersonas mensaje idSala salasRef = do
     case cantidadIngresada of
         Just n -> do
             -- Buscar la sala correspondiente y verificar la capacidad
-            let salaEncontrada = V.find (\s -> codigoSala s == idSala) salasRef  -- No convertir a lista
+            let salaEncontrada = V.find (\s -> codigoSala s == idSala) salasRef
             case salaEncontrada of
                 Just sala -> 
                     if n <= capacidad sala  -- Validar que no exceda la capacidad
@@ -915,7 +906,6 @@ solicitarCantidadPersonas mensaje idSala salasRef = do
             putStrLn "Entrada inválida. Por favor, ingrese un número entero."
             solicitarCantidadPersonas mensaje idSala salasRef
 
--- Consultar una reserva por código
 {-
 /*****Nombre****************************************
  * mostrarInformacionReserva
@@ -1013,10 +1003,6 @@ cancelarReserva reservasRef codigo = do
             putStrLn $ "Reserva con código " ++ codigo ++ " ha sido cancelada."
         Nothing -> putStrLn $ "No se encontró ninguna reserva con el código " ++ codigo
         
-        
-{------------------------------------------------------------------------------------------------------------------------------}
--- modificar
-{------------------------------------------------------------------------------------------------------------------------------}
 {-
 /*****Nombre****************************************
  * modificarReserva
@@ -1058,7 +1044,7 @@ modificarReserva reservasRef salasRef = do
             putStrLn $ "Reserva encontrada: " ++ show reserva
             
             -- Solicitar ID de la sala y validarlo
-            idSalaNuevo <- solicitarIDSala salas "\nIngrese el nuevo ID de la sala (dejar vacío para no modificar): "
+            idSalaNuevo <- solicitarIDSala salas "\nIngrese el nuevo ID de la sala: "
             
             -- Solicitar fecha de la reserva y validar
             let solicitarFechaConValidacion mensaje = do
@@ -1071,10 +1057,10 @@ modificarReserva reservasRef salasRef = do
                             putStrLn "Fecha inválida o menor a la fecha actual. Intente nuevamente."
                             solicitarFechaConValidacion mensaje
 
-            fechaReserva <- solicitarFechaConValidacion "\nIngrese la nueva fecha de la reserva (YYYY-MM-DD, dejar vacío para no modificar): "
+            fechaReserva <- solicitarFechaConValidacion "\nIngrese la nueva fecha de la reserva: "
 
             -- Solicitar cantidad de personas y validarla
-            cantidadNueva <- solicitarCantidadPersonas "\nIngrese la nueva cantidad de personas (dejar vacío para no modificar): " (codigoSalaReserva reserva) salas
+            cantidadNueva <- solicitarCantidadPersonas "\nIngrese la nueva cantidad de personas: " (codigoSalaReserva reserva) salas
 
             -- Crear la nueva reserva modificada
             let nuevaReserva = reserva {
@@ -1103,13 +1089,6 @@ modificarReserva reservasRef salasRef = do
         
         Nothing -> putStrLn "No se encontró una reserva con ese código."
 
-
-
-
-
-{------------------------------------------------------------------------------------------------------------------------------}
---consultar disponibilidad
-{------------------------------------------------------------------------------------------------------------------------------}
 {-
 /*****Nombre****************************************
  * consultarDisponibilidadPorFecha
@@ -1144,15 +1123,15 @@ consultarDisponibilidadPorFecha reservasRef salasRef fechaConsulta = do
             reservasMemoria <- readIORef reservasRef
 
             -- Cargar reservas desde el archivo JSON
-            cargarReservasDesdeJSON "reservas.json" reservasRef  -- Asegúrate de que el archivo esté en la ruta correcta
-            reservasArchivo <- readIORef reservasRef  -- Leer las reservas actualizadas después de cargar
+            cargarReservasDesdeJSON "Archivos del sistema/reservas.json" reservasRef 
+            reservasArchivo <- readIORef reservasRef
 
             -- Leer salas
-            salas <- readIORef salasRef  -- Asegúrate de que estás leyendo las salas aquí
+            salas <- readIORef salasRef
 
             -- Filtrar reservas por la fecha consultada
             let reservasParaFecha = filter (\r -> fecha r == fechaConsulta) 
-                                           (V.toList reservasMemoria ++ V.toList reservasArchivo)  -- Convertir a listas
+                                           (V.toList reservasMemoria ++ V.toList reservasArchivo)
 
             putStrLn $ "Disponibilidad de salas para la fecha: " ++ fechaConsulta
             forM_ salas $ \sala -> do
@@ -1161,9 +1140,6 @@ consultarDisponibilidadPorFecha reservasRef salasRef fechaConsulta = do
                     then putStrLn $ "Sala: " ++ nombreSala sala ++ " (Reservada)"
                     else putStrLn $ "Sala: " ++ nombreSala sala ++ " (Disponible)"
 
-{------------------------------------------------------------------------------------------------------------------------------}
---consultar disponibilidad por rango
-{------------------------------------------------------------------------------------------------------------------------------}
 {-
 /*****Nombre****************************************
  * parseDate
@@ -1222,7 +1198,6 @@ consultarDisponibilidadPorRango reservasRef salasRef fechaInicioStr fechaFinStr 
  * Guarda la información de las reservas en un archivo JSON.
  * Convierte el contenido de las reservas almacenadas en el IORef a
  * formato JSON y lo guarda en la ubicación especificada.
-
  *****Parámetros************************************
  * @filePath: Ruta para guardar el contenido.
  * @reservasRef: Referencia mutable que contiene el vector de reservas creadas.
@@ -1243,14 +1218,10 @@ guardarReservasComoJSON filePath reservasRef = do
 /*****Nombre****************************************
  * cargarReservasDesdeJSON
  *****Descripción***********************************
-
  * Carga la información de las reservas desde un archivo JSON.
-
  * Lee el contenido del archivo especificado y convierte
-
  * los datos a un vector de reservas, que se almacena en
  * la referencia mutable proporcionada.
-
  *****Parámetros************************************
  * @filePath: Ruta del archivo JSON desde donde se cargan las reservas.
  * @reservasRef: Referencia mutable que contiene el vector de reservas creadas.
